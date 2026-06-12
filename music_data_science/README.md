@@ -165,9 +165,13 @@ for candidate in decision.trace:            # full score trace: relevance/recenc
 | `pipeline/mixdown.py` | Local WAV stem recombination (sum + peak-normalize) |
 | `memory/store.py` | SQLite system-of-record: sessions, stems, generations, scores |
 | `memory/raptor.py` | RAPTOR-lite tree + Best-of-N context retrieval over the vault |
+| `memory/vector_store.py` | Embedded SQLite vector store (Strategy A durable vectors); RAPTOR persist/restore |
 | `data/cache.py` | Redis adapter with in-memory fallback; documented keyspace |
+| `data/queue.py` | Redis Streams task queue with consumer groups; in-memory fallback |
 | `data/frames.py` | pandas telemetry frames; csv/parquet round-trip |
 | `evaluation/scorer.py` | Best-of-N scoring: metadata adherence, rubric, embedding hook |
+| `integrations/refine.py` | Optional Claude-backed blueprint/plan refinement via structured outputs (`[llm]` extra) |
+| `examples/end_to_end.py` | Full-loop walkthrough; `--dry-run` exercises every layer without a server |
 
 ## Tests
 
