@@ -1,0 +1,46 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "music-data-science"
+version = "0.1.0"
+description = "Stem-oriented orchestration, data, and memory layer on top of the ACE-Step 1.5 generation engine."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Music Data Science contributors" }]
+keywords = ["music", "stems", "generation", "ace-step", "raptor", "best-of-n"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Multimedia :: Sound/Audio",
+]
+dependencies = [
+    "pydantic>=2",
+    "httpx>=0.24",
+    "pandas>=2.0",
+    "numpy>=1.24",
+]
+
+[project.optional-dependencies]
+data = [
+    "redis>=5",
+    "sqlite-vec>=0.1",
+]
+
+[project.urls]
+Homepage = "https://github.com/cazador0/ACE-Step-1.5"
+"Agent MCP Servers" = "https://github.com/cazador0/mcp-servers"
+"Planning Vault" = "https://github.com/cazador0/awesome-python-audio"
+
+[tool.hatch.build.targets.wheel]
+packages = ["music_data_science"]
+
+[tool.hatch.build.targets.sdist]
+exclude = ["**/*_test.py"]
