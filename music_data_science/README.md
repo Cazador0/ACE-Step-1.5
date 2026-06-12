@@ -161,7 +161,8 @@ for candidate in decision.trace:            # full score trace: relevance/recenc
 | `stems/models.py` | `StemClass` (aligned with ACE-Step `TRACK_NAMES`), `StemSpec`, `SongBlueprint`, `StemEdit`, `EditPlan` |
 | `stems/translator.py` | Deterministic prompt grammar -> `StemEdit`/`EditPlan`; `to_request()` emits `GenerateMusicRequest` payloads; optional `llm_refine` hook |
 | `pipeline/client.py` | `AceStepClient`: `/release_task` submit + `/query_result` polling |
-| `pipeline/orchestrator.py` | `StemSession`: generate / separate / regenerate / add_layer / best_of_n / recombine |
+| `pipeline/orchestrator.py` | `StemSession`: generate / separate / regenerate / add_layer / best_of_n / recombine; optional hot-cache wiring (task results, stem paths) |
+| `pipeline/worker.py` | `QueueWorker` (ack-on-success queue consumer) + `session_handler` adapter driving a `StemSession` from the generation stream |
 | `pipeline/mixdown.py` | Local WAV stem recombination (sum + peak-normalize) |
 | `memory/store.py` | SQLite system-of-record: sessions, stems, generations, scores |
 | `memory/raptor.py` | RAPTOR-lite tree + Best-of-N context retrieval over the vault |
@@ -171,6 +172,7 @@ for candidate in decision.trace:            # full score trace: relevance/recenc
 | `data/frames.py` | pandas telemetry frames; csv/parquet round-trip |
 | `evaluation/scorer.py` | Best-of-N scoring: metadata adherence, rubric, embedding hook |
 | `integrations/refine.py` | Optional Claude-backed blueprint/plan refinement via structured outputs (`[llm]` extra) |
+| `integrations/embeddings.py` | Text-embedding backends (hashed default, sentence-transformers, CLAP text tower) for the embedding hooks (`[embeddings]` extra) |
 | `examples/end_to_end.py` | Full-loop walkthrough; `--dry-run` exercises every layer without a server |
 
 ## Tests

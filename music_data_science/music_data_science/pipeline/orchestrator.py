@@ -8,10 +8,12 @@ pandas telemetry frames so sessions are replayable and auditable.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
+from music_data_science.data.cache import Cache, stem_path_key, task_result_key
 from music_data_science.data.frames import TelemetryFrames
 from music_data_science.evaluation.scorer import BestOfNScorer, ScoreBreakdown
 from music_data_science.memory.store import MemoryStore
@@ -22,6 +24,9 @@ from music_data_science.stems.translator import blueprint_to_request, to_request
 
 #: Stems extracted by default when none are specified for :meth:`StemSession.separate`.
 DEFAULT_SEPARATION = (StemClass.VOCALS, StemClass.DRUMS, StemClass.BASS, StemClass.GUITAR)
+
+#: Hot-cache TTL for task results; stale results are re-readable from the SQLite store.
+TASK_RESULT_TTL_SECONDS = 3600.0
 
 
 @dataclass
@@ -51,6 +56,8 @@ class StemSession:
         store: SQLite system-of-record; an in-memory store is created if omitted.
         frames: Telemetry accumulator; created if omitted.
         name: Human-readable session name.
+        cache: Optional hot cache mirroring task results and stem paths under
+            the documented keyspace; ``None`` disables caching entirely.
     """
 
     def __init__(
@@ -60,11 +67,13 @@ class StemSession:
         store: Optional[MemoryStore] = None,
         frames: Optional[TelemetryFrames] = None,
         name: str = "",
+        cache: Optional[Cache] = None,
     ) -> None:
         self.client = client
         self.blueprint = blueprint
         self.store = store if store is not None else MemoryStore(":memory:")
         self.frames = frames if frames is not None else TelemetryFrames()
+        self.cache = cache
         self.session_id = self.store.create_session(name, blueprint.model_dump())
         self.song_path: Optional[str] = None
         self.stem_paths: dict[StemClass, str] = {}
@@ -82,6 +91,14 @@ class StemSession:
     def _record(self, outcome: GenerationOutcome, stem_class: str) -> int:
         """Persist one outcome to the store and telemetry frames; return the row ID."""
         result = outcome.result
+        if self.cache is not None:
+            # Audio codes are intentionally not cached: the /query_result metas
+            # contract only carries bpm/duration/genres/keyscale/timesignature.
+            self.cache.set(
+                task_result_key(outcome.task_id),
+                json.dumps({"status": int(result.status), "files": result.files, "metas": result.metas}),
+                ttl_seconds=TASK_RESULT_TTL_SECONDS,
+            )
         generation_id = self.store.record_generation(
             session_id=self.session_id,
             task_id=outcome.task_id,
@@ -205,3 +222,5 @@ class StemSession:
         path = outcome.result.files[0]
         self.stem_paths[stem] = path
         self.store.add_stem(self.session_id, stem.value, caption=caption, audio_path=path)
+        if self.cache is not None:
+            self.cache.set(stem_path_key(self.session_id, stem.value), path)

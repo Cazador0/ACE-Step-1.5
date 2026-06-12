@@ -10,6 +10,7 @@ from pathlib import Path
 
 import httpx
 
+from music_data_science.data.cache import InMemoryCache, stem_path_key, task_result_key
 from music_data_science.evaluation.scorer import BestOfNScorer
 from music_data_science.memory.store import MemoryStore
 from music_data_science.pipeline.client import AceStepClient
@@ -44,7 +45,7 @@ class FakeAceStep:
         return httpx.Response(200, json={"data": data, "code": 200, "error": None, "timestamp": 0, "extra": None})
 
 
-def make_session(server=None):
+def make_session(server=None, cache=None):
     """Build a StemSession over a mocked client and in-memory store."""
     server = server or FakeAceStep()
     client = AceStepClient(transport=httpx.MockTransport(server), sleep=lambda _s: None)
@@ -52,7 +53,7 @@ def make_session(server=None):
         global_caption="warm lo-fi hip hop", bpm=84, key_scale="F major", duration=120.0,
         stems=[StemSpec(stem_class=StemClass.DRUMS, caption="dusty kit")],
     )
-    return StemSession(client, blueprint, store=MemoryStore(":memory:"), name="test"), server
+    return StemSession(client, blueprint, store=MemoryStore(":memory:"), name="test", cache=cache), server
 
 
 class WorkflowTest(unittest.TestCase):
@@ -106,6 +107,36 @@ class WorkflowTest(unittest.TestCase):
         self.assertEqual(payload["seed"], 11)
         self.assertFalse(payload["use_random_seed"])
         self.assertIn(StemClass.STRINGS, session.stem_paths)
+
+
+class CacheWiringTest(unittest.TestCase):
+    """An optional hot cache mirrors task results and stem paths."""
+
+    def test_generate_caches_task_result(self):
+        cache = InMemoryCache()
+        session, _server = make_session(cache=cache)
+        outcome = session.generate()
+        cached = cache.get(task_result_key(outcome.task_id))
+        self.assertIsNotNone(cached)
+        payload = json.loads(cached)
+        self.assertEqual(payload["status"], 1)
+        self.assertEqual(payload["files"], outcome.result.files)
+        self.assertEqual(payload["metas"]["bpm"], 84)
+
+    def test_separate_caches_stem_paths(self):
+        cache = InMemoryCache()
+        session, _server = make_session(cache=cache)
+        outcomes = session.separate(audio_path="/in/song.wav", stems=[StemClass.VOCALS, StemClass.DRUMS])
+        for stem, outcome in outcomes.items():
+            self.assertEqual(
+                cache.get(stem_path_key(session.session_id, stem.value)),
+                outcome.result.files[0],
+            )
+
+    def test_no_cache_by_default(self):
+        session, _server = make_session()
+        self.assertIsNone(session.cache)
+        session.generate()  # must not raise without a cache
 
 
 class BestOfNTest(unittest.TestCase):

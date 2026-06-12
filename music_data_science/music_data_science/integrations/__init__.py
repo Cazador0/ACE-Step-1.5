@@ -1,1 +1,1 @@
-"""Optional integrations with external LLM services."""
+"""Optional integrations with external LLM and embedding services."""
